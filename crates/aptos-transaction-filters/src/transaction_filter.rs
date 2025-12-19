@@ -90,6 +90,29 @@ impl TransactionFilter {
 
         self
     }
+
+    /// Creates a filter that only allows `aptos_account::transfer` user transactions.
+    /// All other transactions will be denied.
+    ///
+    /// This filter matches transactions that call the entry function
+    /// `0x1::aptos_account::transfer`. All other transactions are denied.
+    ///
+    /// # Example
+    /// ```
+    /// use aptos_transaction_filters::transaction_filter::TransactionFilter;
+    ///
+    /// let filter = TransactionFilter::only_aptos_account_transfer();
+    /// // This filter will only allow transactions calling 0x1::aptos_account::transfer
+    /// ```
+    pub fn only_aptos_account_transfer() -> Self {
+        Self::empty()
+            .add_multiple_matchers_filter(true, vec![TransactionMatcher::EntryFunction(
+                AccountAddress::ONE,
+                "aptos_account".to_string(),
+                "transfer".to_string(),
+            )])
+            .add_all_filter(false)
+    }
 }
 
 // These are useful test-only methods for creating and testing filters

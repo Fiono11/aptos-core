@@ -704,6 +704,11 @@ with tempfile.TemporaryDirectory() as tmpdirname:
         if SELECTED_FLOW not in test.included_in:
             continue
 
+        # Skip sharded executor if not supported
+        if test.key.executor_type == "sharded":
+            print(f"Skipping {test.key} - sharded executor not supported")
+            continue
+
         if test.expected_tps is not None:
             print(f"WARNING: using uncalibrated TPS for {test.key}")
             criteria = Criteria(

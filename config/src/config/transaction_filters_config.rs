@@ -17,6 +17,24 @@ pub struct TransactionFiltersConfig {
     pub quorum_store_filter: BatchTransactionFilterConfig, // Filter for quorum store (e.g., batch voting)
 }
 
+impl TransactionFiltersConfig {
+    /// Configures both the mempool and API filters to only allow `aptos_account::transfer` transactions.
+    /// All other transactions will be rejected at both the mempool (submission) and API (simulation) levels.
+    ///
+    /// # Example
+    /// ```
+    /// use aptos_config::config::{NodeConfig, TransactionFiltersConfig};
+    ///
+    /// let mut node_config = NodeConfig::default();
+    /// node_config.transaction_filters.only_allow_aptos_account_transfer();
+    /// ```
+    pub fn only_allow_aptos_account_transfer(&mut self) {
+        let filter = TransactionFilter::only_aptos_account_transfer();
+        self.mempool_filter = TransactionFilterConfig::new(true, filter.clone());
+        self.api_filter = TransactionFilterConfig::new(true, filter);
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct TransactionFilterConfig {
@@ -119,5 +137,45 @@ impl Default for BlockTransactionFilterConfig {
             filter_enabled: false,                                     // Disable the filter
             block_transaction_filter: BlockTransactionFilter::empty(), // Use an empty filter
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_only_allow_aptos_account_transfer() {
+        // Create a new config and configure it to only allow aptos_account::transfer
+        let mut filters_config = TransactionFiltersConfig::default();
+        filters_config.only_allow_aptos_account_transfer();
+
+        // Verify that both mempool and API filters are enabled
+        assert!(
+            filters_config.mempool_filter.is_enabled(),
+            "Mempool filter should be enabled"
+        );
+        assert!(
+            filters_config.api_filter.is_enabled(),
+            "API filter should be enabled"
+        );
+
+        // Verify that both filters use the same filter instance (same rules)
+        let mempool_filter = filters_config.mempool_filter.transaction_filter();
+        let api_filter = filters_config.api_filter.transaction_filter();
+
+        // Both should have the same number of rules (1 Allow + 1 Deny)
+        assert_eq!(
+            mempool_filter.is_empty(),
+            api_filter.is_empty(),
+            "Both filters should have the same empty state"
+        );
+
+        // Both should not be empty (they have rules)
+        assert!(
+            !mempool_filter.is_empty(),
+            "Mempool filter should not be empty"
+        );
+        assert!(!api_filter.is_empty(), "API filter should not be empty");
     }
 }

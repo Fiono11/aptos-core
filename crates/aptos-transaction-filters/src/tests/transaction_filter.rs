@@ -368,3 +368,67 @@ fn test_transaction_id_filter() {
         assert_eq!(filtered_transactions, transactions[1..].to_vec());
     }
 }
+
+#[test]
+fn test_only_aptos_account_transfer_filter() {
+    for use_new_txn_payload_format in [false, true] {
+        // Create a transaction that calls aptos_account::transfer (should be allowed)
+        let aptos_account_transfer_txn = utils::create_entry_function_transaction(
+            str::parse("0x1::aptos_account::transfer").unwrap(),
+            use_new_txn_payload_format,
+        );
+
+        // Create transactions that call other functions (should be rejected)
+        let other_txn_1 = utils::create_entry_function_transaction(
+            str::parse("0x1::coin::transfer").unwrap(),
+            use_new_txn_payload_format,
+        );
+        let other_txn_2 = utils::create_entry_function_transaction(
+            str::parse("0x2::test_module::test_function").unwrap(),
+            use_new_txn_payload_format,
+        );
+        let script_txn = utils::create_script_transaction(use_new_txn_payload_format);
+
+        // Create the filter that only allows aptos_account::transfer
+        let filter = TransactionFilter::only_aptos_account_transfer();
+
+        // Verify that aptos_account::transfer transaction is allowed
+        assert!(
+            filter.allows_transaction(&aptos_account_transfer_txn),
+            "aptos_account::transfer transaction should be allowed"
+        );
+
+        // Verify that other transactions are rejected
+        assert!(
+            !filter.allows_transaction(&other_txn_1),
+            "coin::transfer transaction should be rejected"
+        );
+        assert!(
+            !filter.allows_transaction(&other_txn_2),
+            "Other entry function transaction should be rejected"
+        );
+        assert!(
+            !filter.allows_transaction(&script_txn),
+            "Script transaction should be rejected"
+        );
+
+        // Test filtering a batch of transactions
+        let all_transactions = vec![
+            aptos_account_transfer_txn.clone(),
+            other_txn_1.clone(),
+            other_txn_2.clone(),
+            script_txn.clone(),
+        ];
+
+        let filtered_transactions = filter.filter_transactions(all_transactions.clone());
+        assert_eq!(
+            filtered_transactions.len(),
+            1,
+            "Only aptos_account::transfer should pass the filter"
+        );
+        assert_eq!(
+            filtered_transactions[0], aptos_account_transfer_txn,
+            "The filtered transaction should be aptos_account::transfer"
+        );
+    }
+}

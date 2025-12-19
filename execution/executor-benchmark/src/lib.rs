@@ -305,6 +305,10 @@ where
         aptos_genesis::test_utils::test_config_with_custom_features(init_features);
     config.storage.dir = checkpoint_dir.as_ref().to_path_buf();
     storage_test_config.init_storage_config(&mut config);
+    // Configure transaction filters to only allow aptos_account::transfer transactions
+    config
+        .transaction_filters
+        .only_allow_aptos_account_transfer();
     let db = init_db(&config);
     let root_account = TransactionGenerator::read_root_account(genesis_key, &db);
     let root_account = Arc::new(root_account);
@@ -595,6 +599,10 @@ fn add_accounts_impl<V>(
         aptos_genesis::test_utils::test_config_with_custom_features(init_features);
     config.storage.dir = output_dir.as_ref().to_path_buf();
     storage_test_config.init_storage_config(&mut config);
+    // Configure transaction filters to only allow aptos_account::transfer transactions
+    config
+        .transaction_filters
+        .only_allow_aptos_account_transfer();
     let db = init_db(&config);
 
     let start_version = db.reader.get_latest_ledger_info_version().unwrap();
@@ -1021,6 +1029,10 @@ mod tests {
         config.storage.storage_pruner_config = NO_OP_STORAGE_PRUNER_CONFIG;
         config.storage.rocksdb_configs.enable_storage_sharding = false;
         config.indexer_grpc.enabled = false; // Disable indexer for tests
+                                             // Configure transaction filters to only allow aptos_account::transfer transactions
+        config
+            .transaction_filters
+            .only_allow_aptos_account_transfer();
 
         let (txn, vm_result) = {
             let vm_db = init_db(&config);
